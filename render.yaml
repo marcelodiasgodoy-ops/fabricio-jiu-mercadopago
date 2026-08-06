@@ -1,0 +1,18 @@
+# Blueprint do Render — sobe o servidor já configurado.
+# Ao conectar o repositório, o Render lê este arquivo e cria o serviço sozinho.
+services:
+  - type: web
+    name: fabricio-jiu-mercadopago
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: MP_ENV
+        value: production
+      - key: MP_ACCESS_TOKEN
+        sync: false          # você cola o Access Token de produção no painel do Render
+      - key: SITE_URL
+        value: https://equipefabricio.com.br
+      - key: SERVER_URL
+        sync: false          # cole aqui a própria URL que o Render gerar (ex: https://fabricio-jiu-mercadopago.onrender.com)
