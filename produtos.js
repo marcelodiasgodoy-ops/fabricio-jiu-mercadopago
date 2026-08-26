@@ -9,10 +9,23 @@
 // ============================================================
 
 export const PRODUTOS = {
-  'tiger-preta':  { nome: 'Bermuda Tiger Preta',   valor: 15990, pesoKg: 0.4 },
-  'p2':           { nome: 'Bermuda Floral Menta',  valor: 14990, pesoKg: 0.4 },
-  'p3':           { nome: 'Bermuda Camo Nude',     valor: 16990, pesoKg: 0.4 },
-  'p4':           { nome: 'Walkshort Marinho',     valor: 13990, pesoKg: 0.4 },
+  'rash-amarelo': { nome: 'Rash Guard Preta com Amarelo', valor: 20000, pesoKg: 0.3 },
+  'rash-branco': { nome: 'Rash Guard Preta com Branco', valor: 20000, pesoKg: 0.3 },
+  'kimono-atama-branco': { nome: 'Kimono Atama Ultra Light Branco', valor: 53000, pesoKg: 1.4 },
+  'kimono-atama-preto': { nome: 'Kimono Atama Ultra Light Preto', valor: 56000, pesoKg: 1.4 },
+  'camisa-school-preta': { nome: 'Camisa Fabricio School Preta', valor: 10000, pesoKg: 0.25 },
+  'praia-bege-listra': { nome: 'Bermuda Praia Bege com Listra', valor: 15000, pesoKg: 0.4 },
+  'praia-bege-marrom': { nome: 'Bermuda Praia Bege com Marrom', valor: 15000, pesoKg: 0.4 },
+  'praia-bege-preta': { nome: 'Bermuda Praia Bege e Preta', valor: 15000, pesoKg: 0.4 },
+  'praia-bicolor': { nome: 'Bermuda Praia Bi-Color', valor: 15000, pesoKg: 0.4 },
+  'praia-branca-azul': { nome: 'Bermuda Praia Branca e Azul', valor: 15000, pesoKg: 0.4 },
+  'praia-branco-listra': { nome: 'Bermuda Praia Branca com Listra Azul e Preta', valor: 15000, pesoKg: 0.4 },
+  'praia-camuflada': { nome: 'Bermuda Praia Camuflada', valor: 15000, pesoKg: 0.4 },
+  'praia-grafitte': { nome: 'Bermuda Praia Grafite com Detalhe Lateral', valor: 15000, pesoKg: 0.4 },
+  'praia-preta': { nome: 'Bermuda Praia Preta', valor: 15000, pesoKg: 0.4 },
+  'social-azul': { nome: 'Bermuda Social Azul', valor: 18000, pesoKg: 0.4 },
+  'social-cinza': { nome: 'Bermuda Social Cinza', valor: 18000, pesoKg: 0.4 },
+  'social-grafitte': { nome: 'Bermuda Social Grafite', valor: 18000, pesoKg: 0.4 },
 };
 
 // Frete SEDEX estimado por região (1º dígito do CEP), em centavos, até 1kg.
