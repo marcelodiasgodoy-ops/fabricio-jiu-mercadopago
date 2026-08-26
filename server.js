@@ -7,6 +7,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import fs from 'fs';
 import { PRODUTOS, freteSedexCentavos } from './produtos.js';
 
 dotenv.config();
@@ -16,15 +17,32 @@ const {
   MP_ACCESS_TOKEN,                 // Access Token (TEST-... ou APP_USR-...)
   SITE_URL = 'https://equipefabricio.com.br',
   SERVER_URL = 'https://seu-servidor.com',
+  ADMIN_KEY = 'fabricio-admin',    // senha simples p/ o Painel sincronizar o catálogo
   PORT = 3000,
 } = process.env;
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 
 // Memória simples de pedidos (troque por um banco de dados de verdade depois)
 const pedidos = {};
+
+// ---------- CATÁLOGO ----------
+// Fonte da verdade dos preços. Começa com produtos.js (do último deploy) e é
+// ATUALIZADO automaticamente pelo Painel Admin via /api/admin/catalogo.
+// Assim você gerencia produtos só no painel, sem mexer no servidor.
+const CATALOGO_FILE = './catalogo.json';
+let CATALOGO = { ...PRODUTOS };
+try {
+  if (fs.existsSync(CATALOGO_FILE)) {
+    const salvo = JSON.parse(fs.readFileSync(CATALOGO_FILE, 'utf8'));
+    if (salvo && typeof salvo === 'object') CATALOGO = salvo;
+  }
+} catch (e) { console.error('Falha ao ler catalogo.json:', e.message); }
+function salvarCatalogo() {
+  try { fs.writeFileSync(CATALOGO_FILE, JSON.stringify(CATALOGO, null, 2)); } catch (e) {}
+}
 
 const reais = (cents) => Math.round(cents) / 100;  // Mercado Pago usa valor em reais (decimal)
 
@@ -32,8 +50,14 @@ const reais = (cents) => Math.round(cents) / 100;  // Mercado Pago usa valor em 
 // O site chama este endpoint ao clicar em "Pagar com Mercado Pago".
 app.post('/api/mercadopago/criar-preferencia', async (req, res) => {
   try {
-    const { produtoId, tamanho, quantidade, frete } = req.body;
-    const prod = PRODUTOS[produtoId];
+    const { produtoId, tamanho, quantidade, frete, nome, precoCentavos } = req.body;
+    // 1º tenta o catálogo do servidor (valor travado). Se o produto ainda não
+    // foi sincronizado (ex.: servidor reiniciou), usa nome/preço enviados como
+    // reserva — a venda nunca trava por isso.
+    let prod = CATALOGO[produtoId];
+    if (!prod && nome && parseInt(precoCentavos, 10) > 0) {
+      prod = { nome, valor: parseInt(precoCentavos, 10), pesoKg: 0.4 };
+    }
     if (!prod) return res.status(400).json({ erro: 'Produto inválido' });
 
     const qtd = Math.max(1, parseInt(quantidade, 10) || 1);
@@ -153,6 +177,18 @@ app.get('/api/mercadopago/pedido/:ref', (req, res) => {
 });
 app.get('/api/mercadopago/pedidos', (_req, res) => res.json(pedidos));
 
-app.get('/', (_req, res) => res.send('Backend Mercado Pago ok — ambiente: ' + MP_ENV));
+// ---------- 4) Sincronização do catálogo (o Painel Admin chama ao salvar) ----------
+// Recebe a lista de produtos do painel e passa a ser a fonte de preços.
+app.post('/api/admin/catalogo', (req, res) => {
+  if ((req.body && req.body.chave) !== ADMIN_KEY) return res.status(401).json({ erro: 'Não autorizado' });
+  const lista = req.body && req.body.produtos;
+  if (!lista || typeof lista !== 'object') return res.status(400).json({ erro: 'Catálogo inválido' });
+  CATALOGO = lista;
+  salvarCatalogo();
+  return res.json({ ok: true, total: Object.keys(CATALOGO).length });
+});
+app.get('/api/admin/catalogo', (_req, res) => res.json({ total: Object.keys(CATALOGO).length, produtos: CATALOGO }));
+
+app.get('/', (_req, res) => res.send('Backend Mercado Pago ok — ambiente: ' + MP_ENV + ' — produtos: ' + Object.keys(CATALOGO).length));
 
 app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT} (${MP_ENV})`));
