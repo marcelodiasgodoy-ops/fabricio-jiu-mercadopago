@@ -99,9 +99,9 @@ app.post('/api/mercadopago/criar-preferencia', async (req, res) => {
     // back_urls / auto_return só com endereço público (o Mercado Pago rejeita localhost)
     if (!isLocal) {
       body.back_urls = {
-        success: `${SITE_URL}/obrigado`,
-        pending: `${SITE_URL}/pendente`,
-        failure: `${SITE_URL}/falha`,
+        success: `${SITE_URL}/obrigado.html`,
+        pending: `${SITE_URL}/pendente.html`,
+        failure: `${SITE_URL}/falha.html`,
       };
       body.auto_return = 'approved';
     }
