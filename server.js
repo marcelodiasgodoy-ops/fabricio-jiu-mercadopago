@@ -138,6 +138,84 @@ app.post('/api/mercadopago/criar-preferencia', async (req, res) => {
   }
 });
 
+// ---------- 1b) Criar Pix DIRETO (Pix Transparente — QR na própria página) ----------
+// Gera um pagamento Pix real e devolve o QR Code + copia-e-cola para exibir no site.
+app.post('/api/mercadopago/criar-pix', async (req, res) => {
+  try {
+    const { produtoId, tamanho, quantidade, frete, nome, precoCentavos, email } = req.body;
+    let prod = CATALOGO[produtoId];
+    if (!prod && nome && parseInt(precoCentavos, 10) > 0) {
+      prod = { nome, valor: parseInt(precoCentavos, 10), pesoKg: 0.4 };
+    }
+    if (!prod) return res.status(400).json({ erro: 'Produto inválido' });
+
+    const qtd = Math.max(1, parseInt(quantidade, 10) || 1);
+    const valorProduto = prod.valor;
+    const valorFrete = freteSedexCentavos(frete && frete.cep, qtd);
+    const totalCentavos = valorProduto * qtd + valorFrete;
+    const referenceId = 'EF' + Date.now();
+    const payerEmail = (email && /.+@.+\..+/.test(email)) ? email : 'comprador@equipefabricio.com.br';
+
+    const body = {
+      transaction_amount: reais(totalCentavos),
+      description: prod.nome + (tamanho ? ` (Tam. ${tamanho})` : '') + ` x${qtd} + frete`,
+      payment_method_id: 'pix',
+      external_reference: referenceId,
+      notification_url: `${SERVER_URL}/api/mercadopago/webhook`,
+      payer: { email: payerEmail },
+    };
+
+    const resp = await fetch('https://api.mercadopago.com/v1/payments', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${MP_ACCESS_TOKEN}`,
+        'Content-Type': 'application/json',
+        'X-Idempotency-Key': referenceId,
+      },
+      body: JSON.stringify(body),
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      console.error('Mercado Pago Pix erro:', data);
+      return res.status(502).json({ erro: 'Falha ao gerar o Pix', detalhe: data });
+    }
+
+    const tx = data.point_of_interaction && data.point_of_interaction.transaction_data;
+    if (!tx || !tx.qr_code) return res.status(502).json({ erro: 'Pix sem QR Code', detalhe: data });
+
+    pedidos[referenceId] = {
+      status: 'AGUARDANDO', produtoId, tamanho, qtd,
+      total: totalCentavos, paymentId: data.id,
+    };
+
+    return res.json({
+      payment_id: data.id,
+      reference_id: referenceId,
+      qr_code: tx.qr_code,                    // copia-e-cola
+      qr_code_base64: tx.qr_code_base64,      // imagem PNG (base64)
+      ticket_url: tx.ticket_url || null,
+      total: reais(totalCentavos),
+    });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ erro: 'Erro interno ao gerar Pix' });
+  }
+});
+
+// ---------- 1c) Status de um pagamento Pix (o site consulta enquanto espera) ----------
+app.get('/api/mercadopago/pix-status/:id', async (req, res) => {
+  try {
+    const r = await fetch(`https://api.mercadopago.com/v1/payments/${req.params.id}`, {
+      headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` },
+    });
+    const pay = await r.json();
+    if (!r.ok) return res.status(502).json({ erro: 'Falha ao consultar', detalhe: pay });
+    return res.json({ status: pay.status, status_detail: pay.status_detail });
+  } catch (e) {
+    return res.status(500).json({ erro: 'Erro ao consultar status' });
+  }
+});
+
 // ---------- 2) Webhook (confirmação do pagamento — "baixa na hora") ----------
 // O Mercado Pago chama esta URL quando o status do pagamento muda.
 app.post('/api/mercadopago/webhook', async (req, res) => {
